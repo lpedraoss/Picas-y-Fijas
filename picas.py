@@ -1,7 +1,7 @@
 import random
 import itertools
 
-class AgentPick:
+class SmartAgentPick:
     """
     AgentPick
     ------------
@@ -9,81 +9,51 @@ class AgentPick:
     Grupo: Sin grupo
 
     """
+
     def __init__(self):
         self.intentos = 0
         self.ultimo_intento = None
         self.numeros_intentados = set()
-        self.resultados = {
-            'fijas': [None] * 4,  # None indica que la posición aún no se ha determinado
-            'picas': set()  # Set de dígitos que son picas
-        }
-        self.posiciones_picas = {digit: set(range(4)) for digit in '0123456789'}  # Posibles posiciones para cada dígito
-        self.digitos_excluidos = set()
+        self.posibles_numeros = list(itertools.permutations('0123456789', 4))
 
     def generar_numero_aleatorio(self):
         while True:
-            numero = ''.join(random.sample([digit for digit in '0123456789' if digit not in self.digitos_excluidos], 4))
+            numero = ''.join(random.sample('0123456789', 4))
             if numero not in self.numeros_intentados:
                 self.numeros_intentados.add(numero)
                 return numero
 
     def adivinar_numero(self):
-        numero_secreto = self.generar_numero_aleatorio()
+        if self.intentos == 0:
+            numero_secreto = self.generar_numero_aleatorio()
+        else:
+            numero_secreto = self.posibles_numeros[0]
         self.intentos += 1
-        print("Intento {}: {}".format(self.intentos, numero_secreto))
+        print("Intento {}: {}".format(self.intentos, ''.join(numero_secreto)))
         self.ultimo_intento = numero_secreto
-        return numero_secreto
+        return ''.join(numero_secreto)
 
-    def verificar_picas_fijas(self, picas, fijas):
-        intento_lista = list(self.ultimo_intento)
-        posibles_numeros = []
+    def verificar_picas_fijas(self, intento, picas, fijas):
+        nuevas_posibles = []
+        for numero in self.posibles_numeros:
+            picas_count = sum((1 for i, digit in enumerate(numero) if digit in intento and intento[i] != digit))
+            fijas_count = sum((1 for i, digit in enumerate(numero) if intento[i] == digit))
+            if picas_count == picas and fijas_count == fijas:
+                nuevas_posibles.append(numero)
+        self.posibles_numeros = nuevas_posibles
 
-        # Probar con las fijas conocidas
-        for i in range(4):
-            if self.resultados['fijas'][i] is not None:
-                intento_lista[i] = self.resultados['fijas'][i]
-
-        # Generar posibles combinaciones para las posiciones restantes
-        posiciones_restantes = [i for i in range(4) if self.resultados['fijas'][i] is None]
-        posibles_digitos = [digit for digit in '0123456789' if digit not in intento_lista and digit not in self.digitos_excluidos]
-
-        for combinacion in itertools.permutations(posibles_digitos, len(posiciones_restantes)):
-            intento_copia = intento_lista[:]
-            for i, pos in enumerate(posiciones_restantes):
-                intento_copia[pos] = combinacion[i]
-            posible_numero = ''.join(intento_copia)
-            if posible_numero not in self.numeros_intentados:
-                posibles_numeros.append(posible_numero)
-
-        if posibles_numeros:
-            intento_nuevo = posibles_numeros[0]
-        else:
-            intento_nuevo = self.generar_numero_aleatorio()
-
-        self.numeros_intentados.add(intento_nuevo)
-        return intento_nuevo
-
-    def actualizar_resultados(self, intento, picas, fijas):
-        if picas == 0 and fijas == 0:
-            self.digitos_excluidos.update(intento)
-        else:
-            for i, digito in enumerate(intento):
-                if self.resultados['fijas'][i] is None:
-                    if fijas > 0 and digito not in self.resultados['fijas']:
-                        self.resultados['fijas'][i] = digito
-                        fijas -= 1
-                    elif picas > 0 and digito not in self.resultados['picas']:
-                        self.resultados['picas'].add(digito)
-                        picas -= 1
-                if digito in self.resultados['fijas'] or digito in self.resultados['picas']:
-                    self.posiciones_picas[digito].discard(i)
-
+    def actualizar_resultados(self, picas, fijas):
+        self.verificar_picas_fijas(self.ultimo_intento, picas, fijas)
+        
     def adivinar_recursivo(self, picas, fijas):
         if self.ultimo_intento is None:
             intento_agente = self.adivinar_numero()
         else:
-            self.actualizar_resultados(self.ultimo_intento, picas, fijas)
-            intento_agente = self.verificar_picas_fijas(picas, fijas)
+            self.actualizar_resultados(picas, fijas)
+            if self.posibles_numeros:
+                intento_agente = ''.join(self.posibles_numeros[0])
+            else:
+                intento_agente = self.generar_numero_aleatorio()
             self.intentos += 1
             print("Intento {}: {}".format(self.intentos, intento_agente))
             self.ultimo_intento = intento_agente
@@ -100,7 +70,7 @@ class AgentPick:
             self.adivinar_recursivo(picas, fijas)
 
 # Uso del agente
-agente = AgentPick()
+agente = SmartAgentPick()
 print("Piensa en un número de 4 dígitos.")
 input("Cuando estés listo, presiona Enter para que el agente comience a adivinar...")
 # Primer intento del agente
